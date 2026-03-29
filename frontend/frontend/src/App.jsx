@@ -5,6 +5,15 @@ function App() {
   const [nombre, setNombre] = useState("");
   const [cantidad, setCantidad] = useState("");
 
+  // 🆕 nuevos estados
+  const [ingreso, setIngreso] = useState("");
+  const [gastosFijos, setGastosFijos] = useState("");
+
+  // 🧠 cálculos
+  const disponible = ingreso - gastosFijos;
+  const gastoDiario = disponible > 0 ? (disponible / 30).toFixed(2) : 0;
+  const totalGastado = gastos.reduce((acc, g) => acc + parseFloat(g.cantidad), 0);
+
   // Cargar gastos al iniciar
   useEffect(() => {
     cargarGastos();
@@ -27,11 +36,8 @@ function App() {
       body: JSON.stringify({ nombre, cantidad })
     });
 
-    // limpiar inputs
     setNombre("");
     setCantidad("");
-
-    // recargar lista sin refresh
     cargarGastos();
   };
 
@@ -39,6 +45,29 @@ function App() {
     <div style={{ textAlign: "center", marginTop: "50px" }}>
       <h1>💰 MoneyBoss</h1>
 
+      {/* 🆕 INGRESOS */}
+      <input
+        placeholder="Ingreso mensual"
+        value={ingreso}
+        onChange={(e) => setIngreso(e.target.value)}
+        style={{ marginRight: "10px" }}
+      />
+
+      <input
+        placeholder="Gastos fijos"
+        value={gastosFijos}
+        onChange={(e) => setGastosFijos(e.target.value)}
+        style={{ marginRight: "10px" }}
+      />
+
+      {/* 🧠 RESULTADOS */}
+      <h2>💰 Disponible: {disponible || 0}€</h2>
+      <h2>📅 Puedes gastar hoy: {gastoDiario}€</h2>
+      <h2>💸 Has gastado: {totalGastado.toFixed(2)}€</h2>
+
+      <hr />
+
+      {/* 🧾 GASTOS */}
       <input
         placeholder="Nombre"
         value={nombre}
