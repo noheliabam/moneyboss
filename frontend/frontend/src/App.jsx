@@ -5,14 +5,21 @@ function App() {
   const [nombre, setNombre] = useState("");
   const [cantidad, setCantidad] = useState("");
 
+  // Cargar gastos al iniciar
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/gastos")
-      .then(res => res.json())
-      .then(data => setGastos(data));
+    cargarGastos();
   }, []);
 
+  const cargarGastos = async () => {
+    const res = await fetch("https://moneyboss-production.up.railway.app/gastos");
+    const data = await res.json();
+    setGastos(data);
+  };
+
   const agregarGasto = async () => {
-    await fetch("http://127.0.0.1:5000/gastos", {
+    if (!nombre || !cantidad) return;
+
+    await fetch("https://moneyboss-production.up.railway.app/gastos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -20,28 +27,39 @@ function App() {
       body: JSON.stringify({ nombre, cantidad })
     });
 
-    window.location.reload();
+    // limpiar inputs
+    setNombre("");
+    setCantidad("");
+
+    // recargar lista sin refresh
+    cargarGastos();
   };
 
   return (
-    <div>
+    <div style={{ textAlign: "center", marginTop: "50px" }}>
       <h1>💰 MoneyBoss</h1>
 
       <input
         placeholder="Nombre"
+        value={nombre}
         onChange={(e) => setNombre(e.target.value)}
+        style={{ marginRight: "10px" }}
       />
 
       <input
         placeholder="Cantidad"
+        value={cantidad}
         onChange={(e) => setCantidad(e.target.value)}
+        style={{ marginRight: "10px" }}
       />
 
       <button onClick={agregarGasto}>Agregar</button>
 
-      <ul>
+      <ul style={{ marginTop: "20px" }}>
         {gastos.map((g, i) => (
-          <li key={i}>{g.nombre} - {g.cantidad}€</li>
+          <li key={i}>
+            {g.nombre} - {g.cantidad}€
+          </li>
         ))}
       </ul>
     </div>
