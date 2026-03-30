@@ -51,7 +51,17 @@ def agregar_gasto():
     db.session.add(nuevo_gasto)
     db.session.commit()
 
+    
+
     return jsonify({"mensaje": "Gasto guardado en BD"}), 201
+
+@app.route("/reset", methods=["DELETE"])
+def reset_gastos():
+    Gasto.query.delete()
+    db.session.commit()
+    return jsonify({"mensaje": "Todos los gastos eliminados"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+    
