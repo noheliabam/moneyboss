@@ -5,46 +5,48 @@ function App() {
   const [nombre, setNombre] = useState("");
   const [cantidad, setCantidad] = useState("");
 
-  // 🆕 nuevos estados
-  const [ingreso, setIngreso] = useState("");
-  const [gastosFijos, setGastosFijos] = useState("");
+ const [ingreso, setIngreso] = useState(
+  localStorage.getItem("ingreso") || ""
+);
+
+const [gastosFijos, setGastosFijos] = useState(
+  localStorage.getItem("gastosFijos") || ""
+);
+
+
+  const getNombreMes = (mes) => {
+  const [year, m] = mes.split("-");
+  const fecha = new Date(year, m - 1);
+
+  return fecha.toLocaleDateString("es-ES", {
+    month: "long",
+    year: "numeric"
+  });
+};
+
+  const sonidoAlerta = new Audio("https://www.soundjay.com/button/beep-07.wav");
+
+  // 📅 FECHA ACTUAL
+  const hoy = new Date();
+  const fechaTexto = hoy.toLocaleDateString("es-ES", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+
+  const mesActual = new Date().toISOString().slice(0, 7);
+
+  // 💾 GUARDAR
+  useEffect(() => {
+    localStorage.setItem("ingreso", ingreso);
+  }, [ingreso]);
 
   useEffect(() => {
-  localStorage.setItem("ingreso", ingreso);
-}, [ingreso]);
+    localStorage.setItem("gastosFijos", gastosFijos);
+  }, [gastosFijos]);
 
-useEffect(() => {
-  localStorage.setItem("gastosFijos", gastosFijos);
-}, [gastosFijos]);
-
-  // 🧠 cálculos
-  const disponible = parseFloat(ingreso || 0) - parseFloat(gastosFijos || 0);
-  const gastoDiario = disponible > 0 ? (disponible / 30).toFixed(2) : 0;
-  const totalGastado = gastos.reduce(
-    (acc, g) => acc + parseFloat(g.cantidad),
-    0,
-  );
-  let estado = "green";
-
-  if (totalGastado > disponible) {
-    estado = "red";
-  } else if (totalGastado > disponible * 0.7) {
-    estado = "orange";
-  }
-
-  let mensaje = "";
-
-  if (disponible <= 0) {
-    mensaje = "💀 Estás en números rojos. No deberías gastar más.";
-  } else if (totalGastado === 0) {
-    mensaje = `🔥 Empieza bien. Hoy puedes gastar hasta ${gastoDiario}€`;
-  } else if (estado === "green") {
-    mensaje = `✅ Vas perfecto. Sigue así`;
-  } else if (estado === "orange") {
-    mensaje = `⚠️ Cuidado… estás al límite`;
-  } else {
-    mensaje = `🚨 Te pasaste. Ajusta YA si quieres llegar a fin de mes`;
-  }
+  // 📥 CARGAR
   useEffect(() => {
     cargarGastos();
 
@@ -56,22 +58,53 @@ useEffect(() => {
   }, []);
 
   const cargarGastos = async () => {
-    const res = await fetch(
-      "https://moneyboss-production.up.railway.app/gastos",
-    );
+    const res = await fetch("https://moneyboss-production.up.railway.app/gastos");
     const data = await res.json();
     setGastos(data);
   };
 
+  // 🧠 FILTRAR POR MES
+const gastosMes = gastos.filter(g => !g.mes || g.mes === mesActual);
+
+  const disponible =
+    parseFloat(ingreso || 0) - parseFloat(gastosFijos || 0);
+
+  const totalGastado = gastosMes.reduce(
+    (acc, g) => acc + parseFloat(g.cantidad),
+    0
+  );
+
+  const restante = disponible - totalGastado;
+
+  const gastoDiarioReal = restante > 0 ? restante / 30 : 0;
+
+  let estado = "green";
+
+  if (totalGastado > disponible) estado = "red";
+  else if (totalGastado > disponible * 0.7) estado = "orange";
+
+  useEffect(() => {
+    if (estado === "red") sonidoAlerta.play();
+  }, [estado]);
+
+  let mensaje = "";
+
+  if (disponible <= 0) mensaje = "💀 Estás en números rojos";
+  else if (restante <= 0) mensaje = "🚨 Ya no puedes gastar más";
+  else if (estado === "green") mensaje = "✅ Vas bien";
+  else if (estado === "orange") mensaje = "⚠️ Cuidado";
+  else mensaje = "🚨 Te pasaste";
+
+  // ➕ AGREGAR
   const agregarGasto = async () => {
     if (!nombre || !cantidad) return;
 
     await fetch("https://moneyboss-production.up.railway.app/gastos", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({ nombre, cantidad }),
+      body: JSON.stringify({ nombre, cantidad })
     });
 
     setNombre("");
@@ -79,82 +112,117 @@ useEffect(() => {
     cargarGastos();
   };
 
-  const reiniciarMes = async () => {
-  // borrar gastos del backend (temporal)
-  await fetch("https://moneyboss-production.up.railway.app/reset", {
+  // ❌ ELIMINAR
+ const eliminarGasto = async (id) => {
+  await fetch(`https://moneyboss-production.up.railway.app/gastos/${id}`, {
     method: "DELETE"
   });
 
-  // limpiar frontend
-  setGastos([]);
-
-  // limpiar datos guardados
-  localStorage.removeItem("ingreso");
-  localStorage.removeItem("gastosFijos");
-
-  setIngreso("");
-  setGastosFijos("");
+  // 🔥 actualizar sin pedir todo al backend
+  setGastos((prev) => prev.filter(g => g.id !== id));
 };
 
+  // 🔄 RESET (NO borra ingreso)
+  const reiniciarMes = async () => {
+    await fetch("https://moneyboss-production.up.railway.app/reset", {
+      method: "DELETE"
+    });
+
+    setGastos([]);
+  };
+
   return (
-    <div style={{ textAlign: "center", marginTop: "50px" }}>
+    <div style={{
+      maxWidth: "500px",
+      margin: "50px auto",
+      padding: "20px",
+      borderRadius: "10px",
+      background: "#fff",
+      textAlign: "center"
+    }}>
       <h1>💰 MoneyBoss</h1>
 
-      {/* 🆕 INGRESOS */}
+      <p style={{ color: "#666", marginBottom: "10px" }}>
+  {new Date().toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  })}
+</p>
+
+      <h3 style={{ color: "#666" }}>📅 {fechaTexto}</h3>
+
+      {/* INGRESOS */}
       <input
         placeholder="Ingreso mensual"
         value={ingreso}
         onChange={(e) => setIngreso(e.target.value)}
-        style={{ marginRight: "10px" }}
       />
 
       <input
         placeholder="Gastos fijos"
         value={gastosFijos}
         onChange={(e) => setGastosFijos(e.target.value)}
-        style={{ marginRight: "10px" }}
       />
 
-      {/* 🧠 RESULTADOS */}
-      <h2>💰 Disponible: {disponible || 0}€</h2>
-      <h2>📅 Puedes gastar hoy: {gastoDiario}€</h2>
-      <h2 style={{ color: estado }}>
-        💸 Has gastado: {totalGastado.toFixed(2)}€
-      </h2>
+      <h2>💰 Disponible: {disponible}€</h2>
+      <h2>📅 Diario: {gastoDiarioReal.toFixed(2)}€</h2>
+      <h2 style={{ color: estado }}>💸 {totalGastado.toFixed(2)}€</h2>
       <h3>{mensaje}</h3>
 
-      <hr />
+      <button onClick={reiniciarMes}>🔄 Nuevo mes</button>
 
-      <button 
-  onClick={reiniciarMes} 
-  style={{ marginBottom: "20px", background: "red", color: "white" }}
->
-  🔄 Nuevo mes
-</button>
+      {/* BOTONES */}
+      <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginTop: "20px" }}>
+        <button onClick={agregarGasto} style={{ background: "#FFC107" }}>
+          Agregar
+        </button>
 
-      {/* 🧾 GASTOS */}
+        <a href="/stats">
+          <button style={{ background: "#FFC107" }}>
+            📊 Stats
+          </button>
+        </a>
+      </div>
+
+      {/* INPUTS */}
       <input
-        placeholder="Nombre"
-        value={nombre}
-        onChange={(e) => setNombre(e.target.value)}
-        style={{ marginRight: "10px" }}
-      />
+  placeholder="Nombre"
+  value={nombre}
+  onChange={(e) => setNombre(e.target.value)}
+/>
 
-      <input
-        placeholder="Cantidad"
-        value={cantidad}
-        onChange={(e) => setCantidad(e.target.value)}
-        style={{ marginRight: "10px" }}
-      />
+<input
+  placeholder="Cantidad"
+  value={cantidad}
+  onChange={(e) => setCantidad(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") agregarGasto();
+  }}
+/>
 
-      <button onClick={agregarGasto}>Agregar</button>
+      {/* LISTA */}
+      <ul>
+       {gastosMes.map((g) => (
+  <li key={g.id}>
+    {g.nombre} - {g.cantidad}€
 
-      <ul style={{ marginTop: "20px" }}>
-        {gastos.map((g, i) => (
-          <li key={i}>
-            {g.nombre} - {g.cantidad}€
-          </li>
-        ))}
+    <button
+      onClick={() => eliminarGasto(g.id)}
+      style={{
+        marginLeft: "10px",
+        background: "red",
+        color: "white",
+        border: "none",
+        borderRadius: "5px",
+        cursor: "pointer"
+      }}
+    >
+      ❌
+    </button>
+  </li>
+))}
       </ul>
     </div>
   );
