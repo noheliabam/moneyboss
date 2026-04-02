@@ -58,7 +58,7 @@ const [gastosFijos, setGastosFijos] = useState(
   }, []);
 
   const cargarGastos = async () => {
-    const res = await fetch("https://moneyboss-production.up.railway.app/gastos");
+    const res = await fetch("http://127.0.0.1:5000/gastos");
     const data = await res.json();
     setGastos(data);
   };
@@ -99,7 +99,7 @@ const gastosMes = gastos.filter(g => !g.mes || g.mes === mesActual);
   const agregarGasto = async () => {
     if (!nombre || !cantidad) return;
 
-    await fetch("https://moneyboss-production.up.railway.app/gastos", {
+    await fetch("http://127.0.0.1:5000/gastos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -114,7 +114,7 @@ const gastosMes = gastos.filter(g => !g.mes || g.mes === mesActual);
 
   // ❌ ELIMINAR
  const eliminarGasto = async (id) => {
-  await fetch(`https://moneyboss-production.up.railway.app/gastos/${id}`, {
+ await fetch(`http://127.0.0.1:5000/gastos/${id}`, {
     method: "DELETE"
   });
 
@@ -124,7 +124,7 @@ const gastosMes = gastos.filter(g => !g.mes || g.mes === mesActual);
 
   // 🔄 RESET (NO borra ingreso)
   const reiniciarMes = async () => {
-    await fetch("https://moneyboss-production.up.railway.app/reset", {
+    await fetch("http://127.0.0.1:5000/reset", {
       method: "DELETE"
     });
 

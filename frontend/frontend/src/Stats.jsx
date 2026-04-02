@@ -10,15 +10,29 @@ import {
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+
+function getNombreMes(numeroMes) {
+  const meses = [
+    "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+  ];
+  return meses[numeroMes - 1] || numeroMes;
+}
 function Stats() {
   const [gastos, setGastos] = useState([]);
   const [mesSeleccionado, setMesSeleccionado] = useState("");
-
-  useEffect(() => {
-    fetch("https://moneyboss-production.up.railway.app/gastos")
-      .then(res => res.json())
-      .then(data => setGastos(data));
-  }, []);
+useEffect(() => {
+  fetch("http://127.0.0.1:5000/gastos", {
+    headers: {
+      Authorization: "Bearer " + localStorage.getItem("token")
+    }
+  })
+    .then(res => res.json())
+    .then(data => {
+      console.log("GASTOS:", data); // 👈 CLAVE
+      setGastos(data);
+    });
+}, []);
 
   const gastosPorMes = {};
 
