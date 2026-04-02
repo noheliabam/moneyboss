@@ -1,74 +1,130 @@
 import { useEffect, useState } from "react";
 import { Pie } from "react-chartjs-2";
 
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend
-} from "chart.js";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-
-function getNombreMes(numeroMes) {
-  const meses = [
-    "Enero","Febrero","Marzo","Abril","Mayo","Junio",
-    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
-  ];
-  return meses[numeroMes - 1] || numeroMes;
-}
 function Stats() {
   const [gastos, setGastos] = useState([]);
-  const [mesSeleccionado, setMesSeleccionado] = useState("");
-useEffect(() => {
-  fetch("http://127.0.0.1:5000/gastos", {
-    headers: {
-      Authorization: "Bearer " + localStorage.getItem("token")
-    }
-  })
-    .then(res => res.json())
-    .then(data => {
-      console.log("GASTOS:", data); // 👈 CLAVE
-      setGastos(data);
-    });
-}, []);
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("");
 
-  const gastosPorMes = {};
-
-  gastos.forEach(g => {
-    if (!g.mes) return;
-    if (!gastosPorMes[g.mes]) gastosPorMes[g.mes] = 0;
-    gastosPorMes[g.mes] += g.cantidad;
-  });
-
-  const dataChart = {
-    labels: Object.keys(gastosPorMes),
-    datasets: [{
-      data: Object.values(gastosPorMes),
-      backgroundColor: ["#4CAF50","#FF9800","#F44336","#2196F3"]
-    }]
+  // 🔄 cargar datos
+  const cargarDatos = () => {
+    fetch("https://moneyboss-production.up.railway.app/gastos")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("GASTOS:", data);
+        setGastos(data);
+      })
+      .catch((err) => console.error("Error:", err));
   };
 
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  // 🎯 FILTRO POR CATEGORÍA
+  const datosFiltrados = categoriaSeleccionada
+    ? gastos.filter((g) => g.nombre === categoriaSeleccionada)
+    : gastos;
+
+  // 🧠 AGRUPAR POR CATEGORÍA
+  const gastosPorCategoria = {};
+
+  datosFiltrados.forEach((g) => {
+    if (!g.nombre) return;
+
+    if (!gastosPorCategoria[g.nombre]) {
+      gastosPorCategoria[g.nombre] = 0;
+    }
+
+    gastosPorCategoria[g.nombre] += parseFloat(g.cantidad);
+  });
+
+  // 🔥 ORDENAR (de mayor a menor)
+  const ordenado = Object.entries(gastosPorCategoria).sort(
+    (a, b) => b[1] - a[1]
+  );
+
+  const labels = ordenado.map(([k]) => k);
+  const dataValues = ordenado.map(([_, v]) => v);
+
+  // 🎨 COLORES DINÁMICOS
+  const colores = labels.map(
+    () => `hsl(${Math.random() * 360}, 70%, 60%)`
+  );
+
+  // 📊 DATA CHART
+  const dataChart = {
+    labels: labels,
+    datasets: [
+      {
+        data: dataValues,
+        backgroundColor: colores,
+      },
+    ],
+  };
+
+  // 💥 TOOLTIP CON PORCENTAJE
+  const options = {
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+            let total = context.dataset.data.reduce((a, b) => a + b, 0);
+            let value = context.raw;
+            let percentage = ((value / total) * 100).toFixed(1);
+            return `${value}€ (${percentage}%)`;
+          },
+        },
+      },
+    },
+  };
+
+  if (!Array.isArray(gastos) || gastos.length === 0) {
+    return <p style={{ textAlign: "center" }}>No hay datos aún</p>;
+  }
+
   return (
-    <div style={{ maxWidth: "600px", margin: "50px auto", textAlign: "center" }}>
+    <div
+      style={{
+        maxWidth: "600px",
+        margin: "50px auto",
+        textAlign: "center",
+      }}
+    >
       <h1>📊 Estadísticas</h1>
 
-      <select onChange={(e) => setMesSeleccionado(e.target.value)}>
+      {/* 🔽 SELECT */}
+      <select
+        onChange={(e) => setCategoriaSeleccionada(e.target.value)}
+      >
         <option value="">Todos</option>
-        {Object.keys(gastosPorMes).map(m => (
-        <option key={m} value={m}>
-  {getNombreMes(m)}
-</option>
+        {labels.map((cat) => (
+          <option key={cat} value={cat}>
+            {cat}
+          </option>
         ))}
       </select>
 
-      {Object.keys(gastosPorMes).length > 0 && <Pie data={dataChart} />}
+      <br />
+      <br />
 
+      {/* 🔄 BOTÓN ACTUALIZAR */}
+      <button onClick={cargarDatos}>🔄 Actualizar</button>
+
+      <br />
+      <br />
+
+      {/* 📊 GRÁFICA */}
+      {labels.length > 0 && <Pie data={dataChart} options={options} />}
+
+      {/* 📋 LISTA */}
       <ul>
-        {Object.keys(gastosPorMes).map((mes) => (
-          <li key={mes}>
-            {getNombreMes(mes)} → {gastosPorMes[mes]}€
+        {labels.map((cat) => (
+          <li key={cat}>
+            {cat} → {gastosPorCategoria[cat]}€
           </li>
         ))}
       </ul>
